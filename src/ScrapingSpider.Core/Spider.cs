@@ -26,6 +26,7 @@ namespace ScrapingSpider.Core
         private string[] _escapeLinks;
         private string[] _keywords;
         private CookieContainer _cookieContainer;
+        private Random _random;
         private ILogger _log;
 
         #region 事件
@@ -43,6 +44,7 @@ namespace ScrapingSpider.Core
             _cookieContainer = new CookieContainer();
             _crawlThreads = new Thread[_settings.Threads];
             _urlQueue = new Queue<UrlInfo>();
+            _random = new Random();
             _log = logger ?? new EmptyLogger();
 
             // 将初始种子加入队列
@@ -106,6 +108,12 @@ namespace ScrapingSpider.Core
                 {
                     if (urlInfo == null)
                         continue;
+                    if (_settings.LimitSpeed)       // 1-5秒随机间隔的自动限速
+                    {
+                        int span = _random.Next(1000, 5000);
+                        Thread.Sleep(span);
+                    }
+
                     HttpWebRequest request = WebRequest.Create(urlInfo.Url) as HttpWebRequest;
                     ConfigRequest(request);
                     HttpWebResponse response = request.GetResponse() as HttpWebResponse;
@@ -186,7 +194,15 @@ namespace ScrapingSpider.Core
             if (match.Success)
             {
                 cs = match.Groups[2].Value;
-                cs = cs.Replace("\"", "");
+                StringBuilder sb = new StringBuilder();
+                foreach (var ch in cs.ToCharArray())
+                {
+                    if (ch == ' ')
+                        break;
+                    if (ch != '\"')
+                        sb.Append(ch);
+                }
+                cs = sb.ToString();
             }
 
             if (String.IsNullOrEmpty(cs))
@@ -256,7 +272,10 @@ namespace ScrapingSpider.Core
                         url = GetUrlAddess(thisUri);
                         if (_settings.LockHost)
                         {
-                            if (uri.Host != thisUri.Host)
+                            // 对于new.baidu.com和www.baidu.com
+                            // 如果去除二级域名后相等，则认为是同一个网站
+                            if (uri.Host.Split('.').Skip(1).Aggregate((a, b) => a + "." + b) != 
+                                thisUri.Host.Split('.').Skip(1).Aggregate((a, b) => a + "." + b))
                                 continue;
                         }
 

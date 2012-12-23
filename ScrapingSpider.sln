@@ -10,7 +10,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{59AB22
 		.nuget\NuGet.targets = .nuget\NuGet.targets
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScrapingSpider.Core", "ScrapingSpider.Core\ScrapingSpider.Core.csproj", "{636E94A7-2F32-47DF-B358-7F9E1EA8BA0D}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{6FFA1371-32FB-4449-A1F0-1261140ABBF2}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScrapingSpider.Core", "src\ScrapingSpider.Core\ScrapingSpider.Core.csproj", "{636E94A7-2F32-47DF-B358-7F9E1EA8BA0D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

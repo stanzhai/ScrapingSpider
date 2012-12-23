@@ -96,7 +96,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\ScrapingSpider.Core\ScrapingSpider.Core.csproj">
+    <ProjectReference Include="..\ScrapingSpider.Core\ScrapingSpider.Core.csproj">
       <Project>{636e94a7-2f32-47df-b358-7f9e1ea8ba0d}</Project>
       <Name>ScrapingSpider.Core</Name>
     </ProjectReference>

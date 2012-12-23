@@ -72,5 +72,10 @@ namespace ScrapingSpider.Core.Models
         /// 抓取过程中是否锁定Host
         /// </summary>
         public bool LockHost { get; set; }
+
+        /// <summary>
+        /// 自动限制速度
+        /// </summary>
+        public bool LimitSpeed { get; set; }
     }
 }
