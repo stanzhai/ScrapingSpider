@@ -17,13 +17,23 @@ namespace ScrapingSpider
     {
         static void Main(string[] args)
         {
-            MD5Helper.GetMD5HashCode("zsd");
             // 初始化log4net
             log4net.Config.XmlConfigurator.Configure(new FileInfo(Path.Combine(Application.StartupPath, "Config", "log4net.config")));
             FrmSettings frmSettings = new FrmSettings();
             if (frmSettings.ShowDialog() == DialogResult.OK)
             {
-                Spider spider = new Spider(frmSettings.Settings, Log4netFactory.CreateLogger());
+                var settings = frmSettings.Settings;
+                var logger = Log4netFactory.CreateLogger();
+                var unhandledLinks = WebPageDao.GetUnhandledLinks();
+
+                Spider spider = new Spider(settings, logger, unhandledLinks);
+
+                //spider.AddUrlEvent += addUrlArgs =>
+                //{
+                //    WebPageDao.SaveOrUpdateWebPage(addUrlArgs.Url, addUrlArgs.Depth);
+                //    return true;
+                //};
+
                 //spider.DataReceivedEvent += receivedArgs =>
                 //{
                 //    WebPage webPage = ArticleParse.GetArticleWebPage(receivedArgs.Html);
@@ -34,6 +44,7 @@ namespace ScrapingSpider
                 //    webPage.Status = 1;
                 //    WebPageDao.SaveOrUpdateWebPage(webPage);
                 //};
+
                 spider.Crawl();
             }
         }

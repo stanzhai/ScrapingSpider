@@ -2,21 +2,47 @@
 using System.Collections;
 using System.Data;
 using ScrapingSpider.Models;
+using ScrapingSpider.Core.Models;
+using System.Collections.Generic;
+using ScrapingSpider.Extensions;
 
 namespace ScrapingSpider.DataAccess
 {
     public class WebPageDao
     {
-        public static int SaveOrUpdateWebPage(string hashId, string url)
+        public static int SaveOrUpdateWebPage(string url, int depth)
         {
             return SaveOrUpdateWebPage(new WebPage
                                      {
-                                         Id = hashId,
+                                         Id = MD5Helper.GetMD5HashCode(url),
                                          Url = url,
+                                         Depth = depth,
+                                         Status = 0,
                                          InsertDate = DateTime.Now
                                      });
         }
 
+        /// <summary>
+        /// 获取未处理的链接
+        /// </summary>
+        /// <returns></returns>
+        public static IEnumerable<UrlInfo> GetUnhandledLinks()
+        {
+            string connStr = SqlHelper.ConnectionString();
+            var reader = SqlHelper.ExecuteReader(
+                connStr, 
+                CommandType.Text, 
+                "select url, depth from webpage where status=0");
+            while (reader.Read())
+            {
+                yield return new UrlInfo
+                {
+                    Url = Convert.ToString(reader[0]),
+                    Depth = Convert.ToInt32(reader[1])
+                };
+            }
+            yield break;
+        }
 
         /// <summary>
         /// 保存或更新WebPage

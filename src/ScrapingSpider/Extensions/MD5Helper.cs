@@ -11,7 +11,7 @@ namespace ScrapingSpider.Extensions
             var md5 = new MD5CryptoServiceProvider();
             var bytes = UnicodeEncoding.Default.GetBytes(text);
             var md5HashByte = md5.ComputeHash(bytes);
-            return BitConverter.ToInt64(md5HashByte, 0).ToString();
+            return BitConverter.ToUInt64(md5HashByte, 0).ToString();
         }
     }
 }
