@@ -28,22 +28,24 @@ namespace ScrapingSpider
 
                 Spider spider = new Spider(settings, logger, unhandledLinks);
 
-                //spider.AddUrlEvent += addUrlArgs =>
-                //{
-                //    WebPageDao.SaveOrUpdateWebPage(addUrlArgs.Url, addUrlArgs.Depth);
-                //    return true;
-                //};
+                spider.AddUrlEvent += addUrlArgs =>
+                {
+                    if (WebPageDao.IsIdExisted(MD5Helper.GetMD5HashCode(addUrlArgs.Url)))
+                        return false;
+                    WebPageDao.SaveOrUpdateWebPage(addUrlArgs.Url, addUrlArgs.Depth);
+                    return true;
+                };
 
-                //spider.DataReceivedEvent += receivedArgs =>
-                //{
-                //    WebPage webPage = ArticleParse.GetArticleWebPage(receivedArgs.Html);
-                //    webPage.Id = MD5Helper.GetMD5HashCode(receivedArgs.Url);
-                //    webPage.Url = receivedArgs.Url;
-                //    webPage.Depth = receivedArgs.Depth;
-                //    webPage.InsertDate = DateTime.Now;
-                //    webPage.Status = 1;
-                //    WebPageDao.SaveOrUpdateWebPage(webPage);
-                //};
+                spider.DataReceivedEvent += receivedArgs =>
+                {
+                    WebPage webPage = ArticleParse.GetArticleWebPage(receivedArgs.Html);
+                    webPage.Id = MD5Helper.GetMD5HashCode(receivedArgs.Url);
+                    webPage.Url = receivedArgs.Url;
+                    webPage.Depth = receivedArgs.Depth;
+                    webPage.InsertDate = DateTime.Now;
+                    webPage.Status = 1;
+                    WebPageDao.SaveOrUpdateWebPage(webPage);
+                };
 
                 spider.Crawl();
             }
