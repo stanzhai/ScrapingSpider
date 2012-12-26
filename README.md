@@ -3,7 +3,32 @@
 > 爬虫核心使用业余时间开发
 
 # 快速开始
+## Spider主爬虫类介绍
+爬虫的核心实现在ScrapingSpider.Core程序集中。爬虫类为Spider类，爬虫的爬取逻辑，与页面处理逻辑通过事件分离，两个关键事件为AddUrlEvent和DataReceivedEvent。
+
 ## 构造Spider类
+```C#
+// 构造爬虫，需要3个参数：爬虫设置，实现了ILogger的日志记录器，上次未执行完的爬取链接
+Spider spider = new Spider(new Settings(), new EmptyLogger(), null);
+
+spider.AddUrlEvent += addUrlArgs =>
+{
+	// Url即将添加到队列的事件处理
+};
+
+spider.DataReceivedEvent += receivedArgs =>
+{
+	// 页面已经被抓取下来的事件，可在此处理页面，例如页面保存添加到数据库
+};
+
+// 开始爬取
+spider.Crawl();
+```
+
+## ScrapingSpider示例代码
+* 具体的使用方法请参考ScrapingSpider项目的Program.cs类中的示例代码。
+* 示例代码使用SqlServer数据库存储爬取信息，表结构与WebPage类对应，数据库连接字符串请参考App.config。
+* 采用log4net作为日志记录组件。
 
 ## Settings说明
 * Init Seeds: 初始Url地址，多个地址使用回车分开。
@@ -20,4 +45,5 @@
 
 
 # 更新日志
+* 2012/12/25	添加Url正则表达式过滤功能.
 * 2012/12/23	完善说明文档和ScrapingSpider的Settings窗口的使用帮助；解决LockHost无效的问题；完善页面解码的BUG；添加自动限速功能。
