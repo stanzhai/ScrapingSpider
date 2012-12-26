@@ -36,6 +36,11 @@ namespace ScrapingSpider.Core.Models
         /// </summary>
         public string Keywords { get; set; }
 
+        /// <summary>
+        /// 正则表达式过滤
+        /// </summary>
+        public string RegexFilter { get; set; }
+
         private int _crawlDepth = 3;
         /// <summary>
         /// 抓取深度，小于0表示不限制深度, 默认为3

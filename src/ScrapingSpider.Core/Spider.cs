@@ -25,6 +25,7 @@ namespace ScrapingSpider.Core
         private Thread[] _crawlThreads;
         private string[] _escapeLinks;
         private string[] _keywords;
+        private string[] _regexFilters;
         private CookieContainer _cookieContainer;
         private Random _random;
         private ILogger _log;
@@ -46,13 +47,6 @@ namespace ScrapingSpider.Core
             _urlQueue = new Queue<UrlInfo>();
             _random = new Random();
             _log = logger ?? new EmptyLogger();
-
-            // 将初始种子加入队列
-            foreach (var seed in _settings.InitSeeds.Split(Environment.NewLine.ToCharArray()))
-            {
-                if (Regex.IsMatch(seed, @"^(http|https)://([\w-]+\.)+[\w-]+(/[\w- ./?%&=]*)?", RegexOptions.IgnoreCase))
-                    _urlQueue.Enqueue(new UrlInfo { Url = seed, Depth = 1 });
-            }
             // 将待继续爬取的链接加到队列
             if (continueLinks != null)
             {
@@ -60,6 +54,18 @@ namespace ScrapingSpider.Core
                 {
                     _urlQueue.Enqueue(link);
                 }
+            }
+            Init();
+        }
+
+        // 按照系统设置初始化Spider
+        private void Init()
+        {
+            // 将初始种子加入队列
+            foreach (var seed in _settings.InitSeeds.Split(Environment.NewLine.ToCharArray()))
+            {
+                if (Regex.IsMatch(seed, @"^(http|https)://([\w-]+\.)+[\w-]+(/[\w- ./?%&=]*)?", RegexOptions.IgnoreCase))
+                    _urlQueue.Enqueue(new UrlInfo { Url = seed, Depth = 1 });
             }
             // 初始化每个爬取线程
             for (int i = 0; i < _settings.Threads; i++)
@@ -72,6 +78,10 @@ namespace ScrapingSpider.Core
             // 设置关键字
             if (!String.IsNullOrEmpty(_settings.Keywords))
                 _keywords = _settings.Keywords.Replace("\r", "").Split('\n');
+            // 设置正则过滤
+            if (!String.IsNullOrEmpty(_settings.RegexFilter))
+                _regexFilters = _settings.RegexFilter.Replace("\r", "").Split('\n');
+
         }
 
         /// <summary>
@@ -247,7 +257,7 @@ namespace ScrapingSpider.Core
                     }
                     if (_keywords != null)
                     {
-                        if (!_keywords.Any(t => linkText.Contains(t)))
+                        if (!_keywords.Any(linkText.Contains))
                             canBeAdd = false;
                     }
 
@@ -278,6 +288,8 @@ namespace ScrapingSpider.Core
                                 thisUri.Host.Split('.').Skip(1).Aggregate((a, b) => a + "." + b))
                                 continue;
                         }
+                        if (!IsUrlMatchRegex(url))
+                            continue;
 
                         if (AddUrlEvent != null && !AddUrlEvent(new AddUrlEventArgs { Title = linkText, Depth = currentUrl.Depth + 1, Url = url }))
                             continue;
@@ -297,6 +309,28 @@ namespace ScrapingSpider.Core
         private string GetUrlAddess(Uri url)
         {
             return url.Scheme + "://" + url.Authority + "/" + url.LocalPath.Trim('/');
+        }
+
+        // 判断Url是否符合正则表达式过滤规则
+        private bool IsUrlMatchRegex(string url)
+        {
+            bool result = false;
+            if (_regexFilters != null)
+            {
+                foreach (var filter in _regexFilters)
+                {
+                    if (Regex.IsMatch(url, filter, RegexOptions.IgnoreCase))
+                    {
+                        result = true;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                result = true;
+            }
+            return  result;
         }
 
     }

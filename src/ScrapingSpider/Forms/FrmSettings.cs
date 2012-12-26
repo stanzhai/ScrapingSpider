@@ -39,6 +39,7 @@ namespace ScrapingSpider.Forms
         {
             MessageBox.Show("参数说明：" + Environment.NewLine +
                             "Init Seeds: 初始Url地址，多个地址使用回车分开。" + Environment.NewLine +
+                            "Regex Filter: 通过正则表达式过滤Url，多个正则使用回车隔开。" + Environment.NewLine +
                             "Keyword: 关键字，按照指定的关键字爬取，多个关键字使用回车分开。" + Environment.NewLine +
                             "Crawl Depth: 爬取深度，小于0表示不限" + Environment.NewLine +
                             "Escape Links: 要过滤的链接，如：.jpg|.rar|.exe" + Environment.NewLine +

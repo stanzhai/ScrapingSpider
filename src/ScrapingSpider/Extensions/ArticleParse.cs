@@ -6,6 +6,9 @@ using ScrapingSpider.Models;
 
 namespace ScrapingSpider.Extensions
 {
+    /// <summary>
+    /// 自动分析文章正文内容
+    /// </summary>
     public class ArticleParse
     {
         private static float _maxT;

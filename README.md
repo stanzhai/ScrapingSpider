@@ -7,6 +7,7 @@
 
 ## Settings说明
 * Init Seeds: 初始Url地址，多个地址使用回车分开。
+* Regex Filter: 通过正则表达式过滤Url，多个正则使用回车隔开。
 * Keyword: 关键字，按照指定的关键字爬取，多个关键字使用回车分开。
 * Crawl Depth: 爬取深度，小于0表示不限
 * Escape Links: 要过滤的链接，如：.jpg|.rar|.exe
