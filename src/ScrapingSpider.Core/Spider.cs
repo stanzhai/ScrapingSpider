@@ -47,6 +47,7 @@ namespace ScrapingSpider.Core
             _urlQueue = new Queue<UrlInfo>();
             _random = new Random();
             _log = logger ?? new EmptyLogger();
+            Init();
             // 将待继续爬取的链接加到队列
             if (continueLinks != null)
             {
@@ -54,18 +55,21 @@ namespace ScrapingSpider.Core
                 {
                     _urlQueue.Enqueue(link);
                 }
+                _log.Info("上次未处理链接数：" + continueLinks.Count());
             }
-            Init();
         }
 
         // 按照系统设置初始化Spider
         private void Init()
         {
             // 将初始种子加入队列
-            foreach (var seed in _settings.InitSeeds.Split(Environment.NewLine.ToCharArray()))
+            if (!String.IsNullOrEmpty(_settings.InitSeeds))
             {
-                if (Regex.IsMatch(seed, @"^(http|https)://([\w-]+\.)+[\w-]+(/[\w- ./?%&=]*)?", RegexOptions.IgnoreCase))
-                    _urlQueue.Enqueue(new UrlInfo { Url = seed, Depth = 1 });
+                foreach (var seed in _settings.InitSeeds.Split(Environment.NewLine.ToCharArray()))
+                {
+                    if (Regex.IsMatch(seed, @"^(http|https)://([\w-]+\.)+[\w-]+(/[\w- ./?%&=]*)?", RegexOptions.IgnoreCase))
+                        _urlQueue.Enqueue(new UrlInfo { Url = seed, Depth = 1 });
+                }
             }
             // 初始化每个爬取线程
             for (int i = 0; i < _settings.Threads; i++)
@@ -82,6 +86,8 @@ namespace ScrapingSpider.Core
             if (!String.IsNullOrEmpty(_settings.RegexFilter))
                 _regexFilters = _settings.RegexFilter.Replace("\r", "").Split('\n');
 
+            // 设置多线程环境下默认链接数限制为256
+            ServicePointManager.DefaultConnectionLimit = 256;
         }
 
         /// <summary>
@@ -114,6 +120,9 @@ namespace ScrapingSpider.Core
                         continue;
                     urlInfo = _urlQueue.Dequeue();
                 }
+
+                HttpWebRequest request = null;
+                HttpWebResponse response = null;
                 try
                 {
                     if (urlInfo == null)
@@ -124,32 +133,39 @@ namespace ScrapingSpider.Core
                         Thread.Sleep(span);
                     }
 
-                    HttpWebRequest request = WebRequest.Create(urlInfo.Url) as HttpWebRequest;
+                    request = WebRequest.Create(urlInfo.Url) as HttpWebRequest;
                     ConfigRequest(request);
-                    HttpWebResponse response = request.GetResponse() as HttpWebResponse;
+                    response = request.GetResponse() as HttpWebResponse;
                     ParseCookie(response);
                     // 获取网页数据量，如果页面压缩，则解压数据流
-                    using (Stream stream = response.ContentEncoding == "gzip" ? 
-                        new GZipStream(response.GetResponseStream(), CompressionMode.Decompress) : 
+                    using (Stream stream = response.ContentEncoding == "gzip" ?
+                        new GZipStream(response.GetResponseStream(), CompressionMode.Decompress) :
                         response.GetResponseStream())
                     {
-                        _log.Info(String.Format("{0}-{1}-{2}-{3}", 
-                            (int)response.StatusCode, 
-                            response.StatusDescription, 
+                        _log.Info(String.Format("{0}-{1}-{2}-{3}",
+                            (int)response.StatusCode,
+                            response.StatusDescription,
                             urlInfo.Depth,
                             urlInfo.Url));
 
                         string html = ParseContent(stream, response.CharacterSet);
                         ParseLinks(urlInfo, html);
                         if (DataReceivedEvent != null)
-                            DataReceivedEvent(new DataReceivedEventArgs { Url = urlInfo.Url, Depth = urlInfo.Depth, Html = html});
-                    }                   
+                            DataReceivedEvent(new DataReceivedEventArgs { Url = urlInfo.Url, Depth = urlInfo.Depth, Html = html });
+                    }
                 }
                 catch (Exception ex)
                 {
                     _log.Error(String.Format("{0}：{1}", urlInfo.Url, ex.Message));
                     if (CrawErrorEvent != null)
                         CrawErrorEvent(new CrawlErrorEventArgs { Url = urlInfo.Url, Exception = ex });
+                }
+                finally
+                {
+                    if (request != null)
+                        request.Abort();
+                    if (response != null)
+                        response.Close();
                 }
             }
         }
@@ -253,7 +269,7 @@ namespace ScrapingSpider.Core
                                 canBeAdd = false;
                                 break;
                             }
-                        }                       
+                        }
                     }
                     if (_keywords != null)
                     {
@@ -269,22 +285,22 @@ namespace ScrapingSpider.Core
                             .Replace("%2f", "/")
                             .Replace("&amp;", "&");
 
-                        if (String.IsNullOrEmpty(url) || 
-                            url.StartsWith("#") || 
-                            url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) || 
+                        if (String.IsNullOrEmpty(url) ||
+                            url.StartsWith("#") ||
+                            url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) ||
                             url.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase))
                         {
                             continue;
                         }
 
-                        Uri uri = new Uri(currentUrl.Url); 
+                        Uri uri = new Uri(currentUrl.Url);
                         Uri thisUri = url.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? new Uri(url) : new Uri(uri, url);
-                        url = GetUrlAddess(thisUri);
+                        url = thisUri.AbsoluteUri;
                         if (_settings.LockHost)
                         {
                             // 对于new.baidu.com和www.baidu.com
                             // 如果去除二级域名后相等，则认为是同一个网站
-                            if (uri.Host.Split('.').Skip(1).Aggregate((a, b) => a + "." + b) != 
+                            if (uri.Host.Split('.').Skip(1).Aggregate((a, b) => a + "." + b) !=
                                 thisUri.Host.Split('.').Skip(1).Aggregate((a, b) => a + "." + b))
                                 continue;
                         }
@@ -330,7 +346,7 @@ namespace ScrapingSpider.Core
             {
                 result = true;
             }
-            return  result;
+            return result;
         }
 
     }
