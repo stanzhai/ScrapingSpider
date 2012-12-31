@@ -138,21 +138,22 @@ namespace ScrapingSpider.Core
                     response = request.GetResponse() as HttpWebResponse;
                     ParseCookie(response);
                     // 获取网页数据量，如果页面压缩，则解压数据流
-                    using (Stream stream = response.ContentEncoding == "gzip" ?
-                        new GZipStream(response.GetResponseStream(), CompressionMode.Decompress) :
+                    using (Stream stream = response.ContentEncoding == "gzip" ? 
+                        new GZipStream(response.GetResponseStream(), CompressionMode.Decompress) : 
                         response.GetResponseStream())
                     {
-                        _log.Info(String.Format("{0}-{1}-{2}-{3}",
-                            (int)response.StatusCode,
-                            response.StatusDescription,
+                        _log.Info(String.Format("{0}-{1}-{2}-{3}", 
+                            (int)response.StatusCode, 
+                            response.StatusDescription, 
                             urlInfo.Depth,
                             urlInfo.Url));
 
                         string html = ParseContent(stream, response.CharacterSet);
                         ParseLinks(urlInfo, html);
                         if (DataReceivedEvent != null)
-                            DataReceivedEvent(new DataReceivedEventArgs { Url = urlInfo.Url, Depth = urlInfo.Depth, Html = html });
-                    }
+                            DataReceivedEvent(new DataReceivedEventArgs { Url = urlInfo.Url, Depth = urlInfo.Depth, Html = html});
+                        stream.Close();
+                    }                   
                 }
                 catch (Exception ex)
                 {
@@ -180,6 +181,8 @@ namespace ScrapingSpider.Core
             request.CookieContainer = _cookieContainer;
             request.AllowAutoRedirect = true;
             request.MediaType = "text/html";
+            request.Headers["Accept-Language"] = "zh-CN,zh;q=0.8";
+
             if (_settings.Timeout > 0)
                 request.Timeout = _settings.Timeout;
         }
@@ -207,8 +210,6 @@ namespace ScrapingSpider.Core
         /// <param name="response"></param>
         private string ParseContent(Stream stream, string responseEncode)
         {
-            if (_settings.Timeout > 0)
-                stream.ReadTimeout = _settings.Timeout;
             MemoryStream ms = new MemoryStream();
             stream.CopyTo(ms);
             byte[] buffer = ms.ToArray();
@@ -235,6 +236,8 @@ namespace ScrapingSpider.Core
                 cs = responseEncode;
             if (!String.IsNullOrEmpty(cs))
                 encode = Encoding.GetEncoding(cs);
+
+            ms.Close();
 
             return encode.GetString(buffer);
         }
@@ -269,7 +272,7 @@ namespace ScrapingSpider.Core
                                 canBeAdd = false;
                                 break;
                             }
-                        }
+                        }                       
                     }
                     if (_keywords != null)
                     {
@@ -285,22 +288,22 @@ namespace ScrapingSpider.Core
                             .Replace("%2f", "/")
                             .Replace("&amp;", "&");
 
-                        if (String.IsNullOrEmpty(url) ||
-                            url.StartsWith("#") ||
-                            url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) ||
+                        if (String.IsNullOrEmpty(url) || 
+                            url.StartsWith("#") || 
+                            url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) || 
                             url.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase))
                         {
                             continue;
                         }
 
-                        Uri uri = new Uri(currentUrl.Url);
+                        Uri uri = new Uri(currentUrl.Url); 
                         Uri thisUri = url.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? new Uri(url) : new Uri(uri, url);
                         url = thisUri.AbsoluteUri;
                         if (_settings.LockHost)
                         {
                             // 对于new.baidu.com和www.baidu.com
                             // 如果去除二级域名后相等，则认为是同一个网站
-                            if (uri.Host.Split('.').Skip(1).Aggregate((a, b) => a + "." + b) !=
+                            if (uri.Host.Split('.').Skip(1).Aggregate((a, b) => a + "." + b) != 
                                 thisUri.Host.Split('.').Skip(1).Aggregate((a, b) => a + "." + b))
                                 continue;
                         }
@@ -312,9 +315,6 @@ namespace ScrapingSpider.Core
 
                         lock (this)
                         {
-                            // 如果队列中包含了此Url，则不会添加到队列
-                            if (_urlQueue.Any(t => t.Url == url))
-                                continue;
                             _urlQueue.Enqueue(new UrlInfo { Url = url, Depth = currentUrl.Depth + 1 });
                         }
                     }
@@ -346,7 +346,7 @@ namespace ScrapingSpider.Core
             {
                 result = true;
             }
-            return result;
+            return  result;
         }
 
     }
