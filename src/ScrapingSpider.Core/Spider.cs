@@ -10,7 +10,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using ScrapingSpider.Core.Events;
-using HtmlAgilityPack;
 
 namespace ScrapingSpider.Core
 {
@@ -29,6 +28,11 @@ namespace ScrapingSpider.Core
         private CookieContainer _cookieContainer;
         private Random _random;
         private ILogger _log;
+        public Settings Settings 
+        {
+            get { return _settings; }
+            set { _settings = value; }
+        }
 
         #region 事件
         public event DataReceivedEventHandler DataReceivedEvent;
@@ -47,7 +51,6 @@ namespace ScrapingSpider.Core
             _urlQueue = new Queue<UrlInfo>();
             _random = new Random();
             _log = logger ?? new EmptyLogger();
-            Init();
             // 将待继续爬取的链接加到队列
             if (continueLinks != null)
             {
@@ -57,6 +60,19 @@ namespace ScrapingSpider.Core
                 }
                 _log.Info("上次未处理链接数：" + continueLinks.Count());
             }
+        }
+
+        /// <summary>
+        /// 开始抓取
+        /// </summary>
+        public void Crawl()
+        {
+            Init();
+            foreach (var thread in _crawlThreads)
+            {
+                thread.Start();
+            }
+            _log.Info(String.Format("爬虫已启动，开启线程数：{0}", _crawlThreads.Length));
         }
 
         // 按照系统设置初始化Spider
@@ -91,15 +107,14 @@ namespace ScrapingSpider.Core
         }
 
         /// <summary>
-        /// 开始抓取
+        /// 停止爬取
         /// </summary>
-        public void Crawl()
+        public void Stop()
         {
             foreach (var thread in _crawlThreads)
             {
-                thread.Start();
+                thread.Abort();
             }
-            _log.Info(String.Format("爬虫已启动，开启线程数：{0}", _crawlThreads.Length));
         }
 
         // 爬取过程
@@ -251,15 +266,20 @@ namespace ScrapingSpider.Core
             if (_settings.CrawlDepth > 0 && currentUrl.Depth >= _settings.CrawlDepth)
                 return;
 
-            HtmlDocument doc = new HtmlDocument();
-            doc.LoadHtml(html);
-            HtmlNodeCollection linkNodes = doc.DocumentNode.SelectNodes("//a");
-            if (linkNodes == null)
-                return;
-            foreach (var linkNode in linkNodes)
+            // 获取页面所有链接
+            Dictionary<string, string> urls = new Dictionary<string, string>();
+            Match match = Regex.Match(html, "(?i)<a .*?href=\"([^\"]+)\"[^>]*>(.*?)</a>");
+            while (match.Success)
             {
-                HtmlAttribute href = linkNode.Attributes["href"];
-                string linkText = linkNode.InnerText;
+                // 以href作为key，已链接文本作为value
+                urls[match.Groups[1].Value] = Regex.Replace(match.Groups[2].Value, "(?i)<.*?>", "");
+                match = match.NextMatch();
+            }
+
+            foreach (var linknode in urls)
+            {
+                string href = linknode.Key;
+                string linkText = linknode.Value;
                 if (href != null)
                 {
                     bool canBeAdd = true;
@@ -267,7 +287,7 @@ namespace ScrapingSpider.Core
                     {
                         foreach (var node in _escapeLinks)
                         {
-                            if (href.Value.EndsWith(node, StringComparison.OrdinalIgnoreCase))
+                            if (href.EndsWith(node, StringComparison.OrdinalIgnoreCase))
                             {
                                 canBeAdd = false;
                                 break;
@@ -282,7 +302,7 @@ namespace ScrapingSpider.Core
 
                     if (canBeAdd)
                     {
-                        string url = href.Value
+                        string url = href
                             .Replace("%3f", "?")
                             .Replace("%3d", "=")
                             .Replace("%2f", "/")
@@ -310,7 +330,8 @@ namespace ScrapingSpider.Core
                         if (!IsUrlMatchRegex(url))
                             continue;
 
-                        if (AddUrlEvent != null && !AddUrlEvent(new AddUrlEventArgs { Title = linkText, Depth = currentUrl.Depth + 1, Url = url }))
+                        AddUrlEventArgs args = new AddUrlEventArgs { Title = linkText, Depth = currentUrl.Depth + 1, Url = url };
+                        if (AddUrlEvent != null && !AddUrlEvent(args))
                             continue;
 
                         lock (this)

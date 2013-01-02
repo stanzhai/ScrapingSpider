@@ -24,27 +24,29 @@ namespace ScrapingSpider
             {
                 var settings = frmSettings.Settings;
                 var logger = Log4netFactory.CreateLogger();
-                var unhandledLinks = WebPageDao.GetUnhandledLinks();
+                //var unhandledLinks = WebPageDao.GetUnhandledLinks();
 
-                Spider spider = new Spider(settings, logger, unhandledLinks);
+                Spider spider = new Spider(settings, logger, null);
 
                 spider.AddUrlEvent += addUrlArgs =>
                 {
-                    if (WebPageDao.IsIdExisted(MD5Helper.GetMD5HashCode(addUrlArgs.Url)))
-                        return false;
-                    WebPageDao.SaveOrUpdateWebPage(addUrlArgs.Url, addUrlArgs.Depth);
+                    //if (WebPageDao.IsIdExisted(MD5Helper.GetMD5HashCode(addUrlArgs.Url)))
+                    //    return false;
+                    //WebPageDao.SaveOrUpdateWebPage(addUrlArgs.Url, addUrlArgs.Depth);
+                    Console.WriteLine(addUrlArgs.Title + " - " + addUrlArgs.Url);
                     return true;
                 };
 
                 spider.DataReceivedEvent += receivedArgs =>
                 {
-                    WebPage webPage = ArticleParse.GetArticleWebPage(receivedArgs.Html);
-                    webPage.Id = MD5Helper.GetMD5HashCode(receivedArgs.Url);
-                    webPage.Url = receivedArgs.Url;
-                    webPage.Depth = receivedArgs.Depth;
-                    webPage.InsertDate = DateTime.Now;
-                    webPage.Status = 1;
-                    WebPageDao.SaveOrUpdateWebPage(webPage);
+                    //WebPage webPage = ArticleParse.GetArticleWebPage(receivedArgs.Html);
+                    //webPage.Id = MD5Helper.GetMD5HashCode(receivedArgs.Url);
+                    //webPage.Url = receivedArgs.Url;
+                    //webPage.Depth = receivedArgs.Depth;
+                    //webPage.InsertDate = DateTime.Now;
+                    //webPage.Status = 1;
+                    //WebPageDao.SaveOrUpdateWebPage(webPage);
+                    MessageBox.Show(Html2Article.GetArticle(receivedArgs.Html));
                 };
 
                 spider.Crawl();
