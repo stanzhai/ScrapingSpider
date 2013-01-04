@@ -20,14 +20,15 @@ namespace ScrapingSpider.Core
     public class Spider
     {
         private Settings _settings;
-        private Queue<UrlInfo> _urlQueue;
-        private Thread[] _crawlThreads;
+        private readonly Queue<UrlInfo> _urlQueue;
+        private readonly Thread[] _crawlThreads;
+        private readonly bool[] _idleThreads;     // 记录空闲着的线程，当所有的线程都处于空闲状态，则表明爬取结束
         private string[] _escapeLinks;
         private string[] _keywords;
         private string[] _regexFilters;
-        private CookieContainer _cookieContainer;
-        private Random _random;
-        private ILogger _log;
+        private readonly CookieContainer _cookieContainer;
+        private readonly Random _random;
+        private readonly ILogger _log;
         public Settings Settings 
         {
             get { return _settings; }
@@ -48,6 +49,7 @@ namespace ScrapingSpider.Core
             _settings = settings;
             _cookieContainer = new CookieContainer();
             _crawlThreads = new Thread[_settings.Threads];
+            _idleThreads = new bool[_settings.Threads];
             _urlQueue = new Queue<UrlInfo>();
             _random = new Random();
             _log = logger ?? new EmptyLogger();
@@ -62,18 +64,6 @@ namespace ScrapingSpider.Core
             }
         }
 
-        /// <summary>
-        /// 开始抓取
-        /// </summary>
-        public void Crawl()
-        {
-            Init();
-            foreach (var thread in _crawlThreads)
-            {
-                thread.Start();
-            }
-            _log.Info(String.Format("爬虫已启动，开启线程数：{0}", _crawlThreads.Length));
-        }
 
         // 按照系统设置初始化Spider
         private void Init()
@@ -90,7 +80,7 @@ namespace ScrapingSpider.Core
             // 初始化每个爬取线程
             for (int i = 0; i < _settings.Threads; i++)
             {
-                _crawlThreads[i] = new Thread(new ThreadStart(CrawlProc));
+                _crawlThreads[i] = new Thread(new ParameterizedThreadStart(CrawlProc));
             }
             // 设置排除的链接
             if (!String.IsNullOrEmpty(_settings.EscapeLinks))
@@ -106,6 +96,21 @@ namespace ScrapingSpider.Core
             ServicePointManager.DefaultConnectionLimit = 256;
         }
 
+
+        /// <summary>
+        /// 开始抓取
+        /// </summary>
+        public void Crawl()
+        {
+            Init();
+            for (int i = 0; i < _crawlThreads.Count(); i++)
+            {
+                _crawlThreads[i].Start(i);
+                _idleThreads[i] = false;
+            }
+            _log.Info(String.Format("爬虫已启动，开启线程数：{0}", _crawlThreads.Length));
+        }
+
         /// <summary>
         /// 停止爬取
         /// </summary>
@@ -118,16 +123,26 @@ namespace ScrapingSpider.Core
         }
 
         // 爬取过程
-        private void CrawlProc()
+        private void CrawlProc(object threadIndex)
         {
+            int currentThreadIndex = (int) threadIndex;
             while (true)
             {
+                // 根据队列中的Url数量和空闲线程的数量，判断线程是睡眠还是退出
                 if (_urlQueue.Count == 0)
                 {
+                    _idleThreads[currentThreadIndex] = true;
+                    if (!_idleThreads.Any(t => t == false))
+                    {
+                        _log.Info("爬取结束，第" + (currentThreadIndex + 1) + "个线程退出。");
+                        break;
+                    }
                     Thread.Sleep(2000);
                     continue;
                 }
+                _idleThreads[currentThreadIndex] = false;
 
+                // 从队列中取url进行爬取
                 UrlInfo urlInfo = null;
                 lock (this)
                 {
@@ -213,7 +228,10 @@ namespace ScrapingSpider.Core
                 string cookiesExpression = response.Headers["Set-Cookie"];
                 if (!string.IsNullOrEmpty(cookiesExpression))
                 {
-                    Uri cookieUrl = new Uri(string.Format("{0}://{1}:{2}/", response.ResponseUri.Scheme, response.ResponseUri.Host, response.ResponseUri.Port));
+                    Uri cookieUrl = new Uri(string.Format("{0}://{1}:{2}/", 
+                        response.ResponseUri.Scheme, 
+                        response.ResponseUri.Host, 
+                        response.ResponseUri.Port));
                     _cookieContainer.SetCookies(cookieUrl, cookiesExpression);
                 }
             }
@@ -341,11 +359,6 @@ namespace ScrapingSpider.Core
                     }
                 }
             }
-        }
-
-        private string GetUrlAddess(Uri url)
-        {
-            return url.Scheme + "://" + url.Authority + "/" + url.LocalPath.Trim('/');
         }
 
         // 判断Url是否符合正则表达式过滤规则
