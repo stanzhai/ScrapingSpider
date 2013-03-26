@@ -84,13 +84,13 @@ namespace ScrapingSpider.Core
             }
             // 设置排除的链接
             if (!String.IsNullOrEmpty(_settings.EscapeLinks))
-                _escapeLinks = _settings.EscapeLinks.Split('|');
+                _escapeLinks = _settings.EscapeLinks.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
             // 设置关键字
             if (!String.IsNullOrEmpty(_settings.Keywords))
-                _keywords = _settings.Keywords.Replace("\r", "").Split('\n');
+                _keywords = _settings.Keywords.Split(new char[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
             // 设置正则过滤
             if (!String.IsNullOrEmpty(_settings.RegexFilter))
-                _regexFilters = _settings.RegexFilter.Replace("\r", "").Split('\n');
+                _regexFilters = _settings.RegexFilter.Split(new char[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
             // 设置多线程环境下默认链接数限制为256
             ServicePointManager.DefaultConnectionLimit = 256;
